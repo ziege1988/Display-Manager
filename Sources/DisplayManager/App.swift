@@ -33,10 +33,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LoginItem.enableOnFirstLaunch()
         CommandApps.installAll()
 
+        // Erster Start nach einem Update?
+        let defaults = UserDefaults.standard
+        let previousVersion = defaults.string(forKey: "lastLaunchedVersion")
+        let isFirstLaunchAfterUpdate = previousVersion != nil && previousVersion != Bundle.main.shortVersion
+        defaults.set(Bundle.main.shortVersion, forKey: "lastLaunchedVersion")
+
         if AX.isTrusted {
             WindowTracker.shared.start()
         } else {
-            AX.requestTrust()
+            if isFirstLaunchAfterUpdate {
+                // Der Eintrag in den Bedienungshilfen gehört noch zur vorherigen Version und hilft nicht mehr.
+                // Automatisch entfernen und neu anfragen – dann muss nur noch der Schalter umgelegt werden.
+                Log.general.notice("Freigabe nach Update von \(previousVersion ?? "?", privacy: .public) fehlt – Eintrag wird erneuert")
+                AX.resetAndRequestTrust()
+            } else {
+                AX.requestTrust()
+            }
             // Warten, bis der Zugriff in den Systemeinstellungen erteilt wurde.
             permissionTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
                 guard AX.isTrusted else { return }
