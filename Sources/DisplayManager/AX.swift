@@ -108,6 +108,51 @@ enum AX {
         if enhanced { AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue) }
     }
 
+    static func isSettable(_ element: AXUIElement, _ attribute: String) -> Bool {
+        var settable: DarwinBoolean = false
+        return AXUIElementIsAttributeSettable(element, attribute as CFString, &settable) == .success && settable.boolValue
+    }
+
+    /// Setzt den Rahmen und kontrolliert das Ergebnis. Viele Apps übernehmen die Größe nicht,
+    /// solange das Fenster noch auf einen anderen Bildschirm wandert, oder korrigieren sie kurz
+    /// danach – daher bis zu viermal nachprüfen und dann „Größe → Position → Größe“ setzen.
+    static func applyFrame(_ window: AXUIElement, _ rect: CGRect, app: AXUIElement,
+                           completion: ((Bool) -> Void)? = nil) {
+        setFrame(window, rect, app: app)
+        verifyFrame(window, rect, app: app, attempt: 0, completion: completion)
+    }
+
+    private static let verifyDelays: [TimeInterval] = [0.15, 0.3, 0.5, 0.8]
+
+    private static func verifyFrame(_ window: AXUIElement, _ rect: CGRect, app: AXUIElement, attempt: Int,
+                                    completion: ((Bool) -> Void)?) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + verifyDelays[attempt]) {
+            guard let current = frame(window) else { completion?(false); return }
+            if current.isClose(to: rect, tolerance: 3) { completion?(true); return }
+            guard attempt + 1 < verifyDelays.count else {
+                Log.windows.notice("Rahmen nicht vollständig übernommen: Soll \(NSStringFromRect(rect), privacy: .public), Ist \(NSStringFromRect(current), privacy: .public)")
+                completion?(false)
+                return
+            }
+            let enhanced = bool(app, "AXEnhancedUserInterface") ?? false
+            if enhanced { AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanFalse) }
+            setSize(window, rect.size)
+            setPosition(window, rect.origin)
+            setSize(window, rect.size)
+            if enhanced { AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue) }
+            verifyFrame(window, rect, app: app, attempt: attempt + 1, completion: completion)
+        }
+    }
+
+    /// Async-Variante für Abläufe mit await.
+    static func applyFrameAndWait(_ window: AXUIElement, _ rect: CGRect, app: AXUIElement) async -> Bool {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async {
+                applyFrame(window, rect, app: app) { continuation.resume(returning: $0) }
+            }
+        }
+    }
+
     /// Nur „normale“ Fenster – keine Dialoge, Paletten, Sheets, Vollbild- oder minimierten Fenster.
     static func isStandardWindow(_ element: AXUIElement) -> Bool {
         guard string(element, kAXRoleAttribute as String) == (kAXWindowRole as String),

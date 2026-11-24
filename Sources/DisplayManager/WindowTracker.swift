@@ -225,8 +225,8 @@ final class AppObserver {
 
     /// Prüfzeitpunkte nach dem Öffnen eines Fensters. Mehrfach, weil manche Apps ihre
     /// eigene (evtl. falsche) Position erst nachträglich setzen.
-    static let restoreDelays: [TimeInterval] = [0.25, 0.9, 2.0, 3.5]
-    static let graceDuration: TimeInterval = 4.2
+    static let restoreDelays: [TimeInterval] = [0.25, 0.9, 2.0, 3.5, 5.0]
+    static let graceDuration: TimeInterval = 6.5
     static let launchPhaseDuration: TimeInterval = 20
 
     let pid: pid_t
@@ -432,7 +432,7 @@ final class AppObserver {
         guard let target = targetRect(for: tracked, useAppFallback: allowFallback) else { return }
 
         if !current.isClose(to: target) {
-            AX.setFrame(tracked.element, target, app: appElement)
+            AX.applyFrame(tracked.element, target, app: appElement)
             Log.windows.info("\(self.name, privacy: .public): Fenster wiederhergestellt → \(NSStringFromRect(target), privacy: .public)")
         }
     }
@@ -445,7 +445,7 @@ final class AppObserver {
             if tracked.recordID == nil { tracked.recordID = match(tracked, allowFallback: false)?.id }
             guard tracked.recordID != nil, let target = targetRect(for: tracked, useAppFallback: false) else { continue }
             if !current.isClose(to: target) {
-                AX.setFrame(tracked.element, target, app: appElement)
+                AX.applyFrame(tracked.element, target, app: appElement)
                 tracked.lastSaved = target
             }
         }

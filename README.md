@@ -30,6 +30,8 @@ Gedacht für die Arbeit an einem Grafiktablett mit Bildschirm (z. B. Wacom): Auf
 4. Optional **Ansicht › Ganzes Bild**, damit das Duplikat die Übersicht zeigt.
 5. Der Fokus springt zurück auf das Original. Du arbeitest sofort weiter.
 
+Ist in Photoshop „Zoomen verändert Fenstergröße“ aktiv, schrumpft „Ganzes Bild“ das Fenster auf Bildgröße. Display Manager zieht es danach automatisch wieder bildschirmfüllend auf.
+
 Ist das Duplikat schon offen, wird es nur wieder auf den Zielbildschirm gelegt, ohne ein zweites zu erzeugen. Display Manager klickt dabei nur die Photoshop-Menüs an, wie du es von Hand tun würdest. Es wird nichts in Photoshop installiert.
 
 **Auslöser**

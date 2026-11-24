@@ -72,7 +72,7 @@ final class PhotoshopDuplicator: ObservableObject {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         for window in duplicates {
             guard let target = targetDisplay(excluding: nil) else { return }
-            AX.setFrame(window, displays.visibleRect(for: target), app: appElement)
+            AX.applyFrame(window, displays.visibleRect(for: target), app: appElement)
         }
     }
 
@@ -113,7 +113,7 @@ final class PhotoshopDuplicator: ObservableObject {
                 duplicates.first { Self.documentName(AX.title($0)) == docName }!
             let source = CFEqual(existing, original) ? nil : original
             guard let target = targetDisplay(excluding: source.flatMap(AX.frame)) else { throw DuplicateError.noTargetDisplay }
-            AX.setFrame(existing, displays.visibleRect(for: target), app: appElement)
+            _ = await AX.applyFrameAndWait(existing, displays.visibleRect(for: target), app: appElement)
             if let source { focus(source) }
             return "Vorhandenes Duplikat auf „\(target.name)“ gelegt."
         }
@@ -160,23 +160,33 @@ final class PhotoshopDuplicator: ObservableObject {
 
         // 4. Auf den Zielbildschirm legen und ihn ganz ausfüllen (das Fenster, nicht das Foto)
         let rect = displays.visibleRect(for: target)
-        AX.setFrame(duplicate, rect, app: appElement)
-        try await sleep(0.25)
-        if let frame = AX.frame(duplicate), !frame.isClose(to: rect, tolerance: 2) {
-            AX.setFrame(duplicate, rect, app: appElement) // zweiter Versuch, falls Photoshop nachkorrigiert
-        }
+        _ = await AX.applyFrameAndWait(duplicate, rect, app: appElement)
 
-        // 5. Optional im Duplikat „Ganzes Bild“, damit dort die Übersicht zu sehen ist
+        // 5. Optional im Duplikat „Ganzes Bild“, damit dort die Übersicht zu sehen ist.
+        //    Ist in Photoshop „Zoomen verändert Fenstergröße“ aktiv, schrumpft das Fenster dabei
+        //    auf Bildgröße – deshalb danach erneut bildschirmfüllend aufziehen.
         if prefs.photoshopFitOnScreen, let fitItem = findFitOnScreenItem(appElement) {
             focus(duplicate)
             try await sleep(0.2)
             press(fitItem)
-            try await sleep(0.2)
+            try await sleep(0.35)
         }
+        var filled = await AX.applyFrameAndWait(duplicate, rect, app: appElement)
+
+        // Notlösung, falls Photoshop die Größe per Bedienungshilfen nicht annimmt: grüne Zoom-Taste.
+        if !filled, let zoom = AX.copy(duplicate, kAXZoomButtonAttribute as String),
+           CFGetTypeID(zoom) == AXUIElementGetTypeID() {
+            AXUIElementPerformAction(zoom as! AXUIElement, kAXPressAction as CFString) // swiftlint:disable:this force_cast
+            try await sleep(0.4)
+            filled = await AX.applyFrameAndWait(duplicate, rect, app: appElement)
+        }
+        if !filled { saveDiagnosticsFile() }
 
         // 6. Zurück zum Original (auf dem Wacom) – dort wird weitergearbeitet
         focus(original)
-        return "Duplikat von „\(docName.isEmpty ? "Dokument" : docName)“ auf „\(target.name)“ geöffnet."
+        let size = AX.frame(duplicate).map { "\(Int($0.width))×\(Int($0.height))" } ?? "?"
+        let note = filled ? "" : " – Achtung: Photoshop hat die volle Größe nicht übernommen (\(size) statt \(Int(rect.width))×\(Int(rect.height))). Diagnose gespeichert."
+        return "Duplikat von „\(docName.isEmpty ? "Dokument" : docName)“ auf „\(target.name)“ geöffnet\(note)."
     }
 
     // MARK: - Hilfen
@@ -319,7 +329,8 @@ final class PhotoshopDuplicator: ObservableObject {
             let role = AX.string(w, kAXRoleAttribute as String) ?? "?"
             let sub = AX.string(w, kAXSubroleAttribute as String) ?? "?"
             let frame = AX.frame(w).map { NSStringFromRect($0) } ?? "?"
-            lines.append("  „\(AX.title(w))“ · \(role)/\(sub) · \(frame)")
+            let sizeSettable = AX.isSettable(w, kAXSizeAttribute as String) ? "Größe änderbar" : "Größe NICHT änderbar"
+            lines.append("  „\(AX.title(w))“ · \(role)/\(sub) · \(frame) · \(sizeSettable)")
         }
 
         func dump(_ names: [String], label: String) {
