@@ -236,15 +236,19 @@ private struct PhotoshopTab: View {
                 }
                 Text("Eine einzelne Taste reicht. F13 kollidiert mit nichts und lässt sich gut auf eine Loupedeck- oder Wacom-Taste legen. Normale Buchstaben brauchen eine Zusatztaste (⌘, ⌥ oder ⌃).")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Loupedeck CT („Befehl ausführen“)") {
+                Text("Lege einer Loupedeck-Taste die Aktion „Befehl ausführen“ zu und wähle diese Datei als Pfad. Sie startet unsichtbar, löst das Duplikat aus und beendet sich sofort.")
+                    .font(.callout).foregroundStyle(.secondary)
+                Text(CommandApps.url(for: CommandApps.photoshopDuplicate).path)
+                    .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                 HStack {
-                    Text("Befehl für Loupedeck/Kurzbefehle:")
-                    Text(PhotoshopDuplicator.urlCommand).font(.system(.body, design: .monospaced)).textSelection(.enabled)
+                    Button("Pfad kopieren") { CommandApps.copyPath(CommandApps.photoshopDuplicate) }
+                    Button("Im Finder zeigen") { CommandApps.revealInFinder(CommandApps.photoshopDuplicate) }
                     Spacer()
-                    Button("Kopieren") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(PhotoshopDuplicator.urlCommand, forType: .string)
-                    }
                 }
+                Text("Tipp: Im Dateiauswahl-Dialog ⇧⌘G drücken und den kopierten Pfad einfügen. Falls Loupedeck ein Befehlsfeld statt eines Pfads anbietet: open -g \(PhotoshopDuplicator.urlCommand)")
+                    .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
             Section("Test") {
                 HStack {

@@ -34,7 +34,10 @@ Ist das Duplikat schon offen, wird es nur wieder auf den Zielbildschirm gelegt, 
 
 **Auslöser**
 - **Taste:** F13 (Standard) oder eine eigene Taste unter *Einstellungen › Photoshop* aufnehmen.
-- **Loupedeck CT / Wacom ExpressKey:** dort eine Taste mit der Aktion „Tastenkürzel“ belegen und F13 (bzw. deine Taste) eintragen.
+- **Loupedeck CT:** einer Taste die Aktion **„Befehl ausführen“** zuweisen und als Pfad die Befehls-App wählen:
+  `~/Library/Application Support/Display Manager/Befehle/Photoshop-Duplikat.app`
+  Display Manager legt sie selbst an. Unter *Einstellungen › Photoshop* gibt es dafür „Pfad kopieren“ und „Im Finder zeigen“; im Dateiauswahl-Dialog öffnet ⇧⌘G das Feld zum Einfügen des Pfads. Die App startet unsichtbar (kein Fenster, kein Dock, kein Terminal), löst den Befehl aus und beendet sich sofort. Daneben liegt `Fenster wiederherstellen.app`.
+- **Wacom ExpressKey:** Taste mit „Tastenanschlag“ F13 (bzw. deiner Taste) belegen.
 - **Link-Befehl:** `displaymanager://photoshop-duplikat`. Er funktioniert z. B. in der Kurzbefehle-App („URL öffnen“), in jeder Software, die Links öffnen kann, oder im Terminal: `open displaymanager://photoshop-duplikat`.
 - **Menüleiste:** „Photoshop-Duplikat auf 2. Bildschirm“.
 

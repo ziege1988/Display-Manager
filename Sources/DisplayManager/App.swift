@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = WindowStore.shared
         statusBar = StatusBarController { SettingsWindowController.shared.show() }
         LoginItem.enableOnFirstLaunch()
+        CommandApps.installAll()
 
         if AX.isTrusted {
             WindowTracker.shared.start()
