@@ -80,6 +80,16 @@ final class DisplayRegistry: ObservableObject {
         return CGRect(x: x, y: y, width: w, height: h)
     }
 
+    /// Nutzbare Fläche eines Bildschirms (ohne Menüleiste/Dock) in globalen AX-Koordinaten.
+    func visibleRect(for display: DisplayInfo) -> CGRect {
+        guard let primary = NSScreen.screens.first,
+              let screen = NSScreen.screens.first(where: {
+                  ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == display.displayID
+              }) else { return display.bounds }
+        let vf = screen.visibleFrame
+        return CGRect(x: vf.minX, y: primary.frame.height - vf.maxY, width: vf.width, height: vf.height)
+    }
+
     func refresh() {
         var count: UInt32 = 0
         guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else { return }

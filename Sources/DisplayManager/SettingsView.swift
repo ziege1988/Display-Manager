@@ -21,7 +21,7 @@ final class SettingsWindowController {
     }
 }
 
-enum SettingsTab: Hashable { case general, displays, apps, updates }
+enum SettingsTab: Hashable { case general, displays, apps, photoshop, updates }
 
 final class SettingsState: ObservableObject {
     static let shared = SettingsState()
@@ -36,10 +36,11 @@ struct SettingsView: View {
             GeneralTab().tabItem { Label("Allgemein", systemImage: "gearshape") }.tag(SettingsTab.general)
             DisplaysTab().tabItem { Label("Bildschirme", systemImage: "display.2") }.tag(SettingsTab.displays)
             AppsTab().tabItem { Label("Apps", systemImage: "macwindow.on.rectangle") }.tag(SettingsTab.apps)
+            PhotoshopTab().tabItem { Label("Photoshop", systemImage: "rectangle.on.rectangle") }.tag(SettingsTab.photoshop)
             UpdatesTab().tabItem { Label("Updates", systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.updates)
         }
         .padding()
-        .frame(width: 660, height: 500)
+        .frame(width: 680, height: 560)
     }
 }
 
@@ -199,6 +200,124 @@ private struct AppIconView: View {
         } else {
             Image(systemName: "app.dashed").font(.title2).frame(width: 28, height: 28)
         }
+    }
+}
+
+// MARK: - Photoshop
+
+private struct PhotoshopTab: View {
+    @ObservedObject private var prefs = Preferences.shared
+    @ObservedObject private var registry = DisplayRegistry.shared
+    @ObservedObject private var duplicator = PhotoshopDuplicator.shared
+
+    var body: some View {
+        Form {
+            Section {
+                Text("Erzeugt eine zweite Ansicht des aktuellen Dokuments (Fenster › Anordnen › Neues Fenster für …), löst sie als schwebendes Fenster, legt sie auf den gewählten Bildschirm und lässt sie ihn ganz ausfüllen. Es wird kein neues Dokument und keine Ebene erzeugt – Änderungen erscheinen live in beiden Fenstern.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            Section("Ziel") {
+                Picker("Bildschirm für das Duplikat", selection: $prefs.photoshopTargetDisplay) {
+                    Text("Automatisch (anderer Bildschirm als das Original)").tag("")
+                    ForEach(registry.known) { display in
+                        Text(registry.isConnected(display.uuid) ? display.name : "\(display.name) (nicht verbunden)")
+                            .tag(display.uuid)
+                    }
+                }
+                Toggle("Im Duplikat „Ganzes Bild“ anzeigen (Übersicht)", isOn: $prefs.photoshopFitOnScreen)
+            }
+            Section("Auslöser") {
+                Toggle("Tastenkürzel aktiv", isOn: $prefs.hotKeyEnabled)
+                    .onChange(of: prefs.hotKeyEnabled) { _ in NotificationCenter.default.post(name: .hotKeyChanged, object: nil) }
+                HStack {
+                    Text("Taste")
+                    Spacer()
+                    HotKeyRecorder()
+                }
+                Text("Eine einzelne Taste reicht. F13 kollidiert mit nichts und lässt sich gut auf eine Loupedeck- oder Wacom-Taste legen. Normale Buchstaben brauchen eine Zusatztaste (⌘, ⌥ oder ⌃).")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Text("Befehl für Loupedeck/Kurzbefehle:")
+                    Text(PhotoshopDuplicator.urlCommand).font(.system(.body, design: .monospaced)).textSelection(.enabled)
+                    Spacer()
+                    Button("Kopieren") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(PhotoshopDuplicator.urlCommand, forType: .string)
+                    }
+                }
+            }
+            Section("Test") {
+                HStack {
+                    Button("Jetzt ausführen") { duplicator.trigger() }.disabled(duplicator.isRunning)
+                    Button("Diagnose kopieren") { duplicator.copyDiagnosticsToClipboard() }
+                    Spacer()
+                    if duplicator.isRunning { ProgressView().controlSize(.small) }
+                }
+                Text(duplicator.lastResult).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { registry.refresh() }
+    }
+}
+
+/// Nimmt ein Tastenkürzel auf: Klicken, dann die gewünschte Taste drücken (Esc bricht ab).
+private struct HotKeyRecorder: View {
+    @ObservedObject private var prefs = Preferences.shared
+    @State private var recording = false
+    @State private var monitor: Any?
+    @State private var hint = ""
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if !hint.isEmpty { Text(hint).font(.caption).foregroundStyle(.orange) }
+            Button(recording ? "Taste drücken …" : prefs.hotKeyLabel) {
+                recording ? stop() : start()
+            }
+            .frame(minWidth: 120)
+            Button("F13") { apply(keyCode: 105, modifiers: 0, label: "F13") }
+                .help("Auf Standard zurücksetzen")
+        }
+        .onDisappear { stop() }
+    }
+
+    private func start() {
+        hint = ""
+        recording = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handle(event)
+            return nil
+        }
+    }
+
+    private func stop() {
+        recording = false
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+
+    private func handle(_ event: NSEvent) {
+        let keyCode = Int(event.keyCode)
+        if keyCode == 53 { stop(); return } // Esc
+        let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        let modifiers = HotKey.carbonModifiers(from: flags)
+        let isFunctionKey = HotKey.functionKeys[keyCode] != nil
+        let hasRealModifier = !flags.intersection([.command, .option, .control]).isEmpty
+        guard isFunctionKey || hasRealModifier else {
+            hint = "Bitte F-Taste oder mit ⌘/⌥/⌃"
+            return
+        }
+        let keyName = HotKey.functionKeys[keyCode] ?? (event.charactersIgnoringModifiers ?? "?").uppercased()
+        apply(keyCode: keyCode, modifiers: modifiers, label: HotKey.modifierSymbols(modifiers) + keyName)
+        stop()
+    }
+
+    private func apply(keyCode: Int, modifiers: Int, label: String) {
+        prefs.hotKeyCode = keyCode
+        prefs.hotKeyModifiers = modifiers
+        prefs.hotKeyLabel = label
+        hint = ""
+        NotificationCenter.default.post(name: .hotKeyChanged, object: nil)
     }
 }
 

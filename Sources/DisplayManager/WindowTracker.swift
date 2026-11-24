@@ -32,7 +32,31 @@ final class WindowTracker {
     }
 
     func restoreAllowed(for bundleID: String) -> Bool {
-        prefs.restoreEnabled && !prefs.paused && !store.isExcluded(bundleID)
+        prefs.restoreEnabled && !prefs.paused && !store.isExcluded(bundleID) && !isRestoreSuppressed(bundleID)
+    }
+
+    /// Fenster, die Display Manager selbst verwaltet (z. B. Photoshop-Duplikate) – werden weder gespeichert noch verschoben.
+    private var ignoredWindows: Set<WindowKey> = []
+    private var restoreSuppressedUntil: [String: Date] = [:]
+
+    func ignore(_ window: AXUIElement) {
+        ignoredWindows.insert(WindowKey(window))
+        for observer in observers.values { observer.forget(window) }
+    }
+
+    func isIgnored(_ window: AXUIElement) -> Bool {
+        if ignoredWindows.isEmpty { return false }
+        return ignoredWindows.contains(WindowKey(window))
+    }
+
+    /// Neue Fenster dieser App für kurze Zeit nicht automatisch verschieben.
+    func suppressRestore(bundleID: String, for seconds: TimeInterval) {
+        restoreSuppressedUntil[bundleID] = Date().addingTimeInterval(seconds)
+    }
+
+    func isRestoreSuppressed(_ bundleID: String) -> Bool {
+        guard let until = restoreSuppressedUntil[bundleID] else { return false }
+        return Date() < until
     }
 
     func suppressSaving(for seconds: TimeInterval) {
@@ -112,6 +136,7 @@ final class WindowTracker {
 
     /// Speichert die aktuellen Rahmen aller offenen Fenster und findet neue Fenster.
     func snapshot() {
+        ignoredWindows = ignoredWindows.filter { AX.copy($0.element, kAXRoleAttribute as String) != nil }
         for observer in observers.values { observer.snapshot() }
     }
 
@@ -143,6 +168,7 @@ final class WindowTracker {
         displayChangeInProgress = false
         suppressSaving(for: 5)
         Log.displays.info("Bildschirm-Konfiguration geändert: \(self.displays.configurationKey, privacy: .public)")
+        PhotoshopDuplicator.shared.replaceDuplicates()
         guard prefs.restoreOnDisplayChange else { return }
         restoreAll()
         // Manche Apps/macOS verschieben verspätet – ein zweiter Durchgang.
@@ -295,7 +321,7 @@ final class AppObserver {
 
     private func discover(_ element: AXUIElement, allowRestore: Bool, isRetry: Bool = false) {
         let key = WindowKey(element)
-        guard windows[key] == nil else { return }
+        guard windows[key] == nil, tracker?.isIgnored(element) != true else { return }
         guard AX.isStandardWindow(element) else {
             // Rolle/Subrolle sind direkt nach dem Erzeugen manchmal noch nicht gesetzt.
             if !isRetry {
@@ -354,6 +380,12 @@ final class AppObserver {
         }
         tracked.saveWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
+    }
+
+    /// Fenster aus der Beobachtung entfernen (wird von Display Manager selbst verwaltet).
+    func forget(_ element: AXUIElement) {
+        guard let tracked = windows.removeValue(forKey: WindowKey(element)) else { return }
+        tracked.saveWork?.cancel()
     }
 
     private func windowClosed(_ element: AXUIElement) {

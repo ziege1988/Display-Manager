@@ -16,7 +16,23 @@ final class Preferences: ObservableObject {
     /// Updates automatisch laden und beim nächsten Start installieren.
     @Published var autoInstallUpdates: Bool { didSet { defaults.set(autoInstallUpdates, forKey: Keys.autoInstallUpdates) } }
 
+    /// Photoshop-Duplikat: Zielbildschirm (UUID, leer = automatisch).
+    @Published var photoshopTargetDisplay: String { didSet { defaults.set(photoshopTargetDisplay, forKey: Keys.photoshopTargetDisplay) } }
+    /// Im Duplikat „Ganzes Bild“ ausführen, damit die Übersicht zu sehen ist.
+    @Published var photoshopFitOnScreen: Bool { didSet { defaults.set(photoshopFitOnScreen, forKey: Keys.photoshopFitOnScreen) } }
+    /// Tastenkürzel (Carbon-Tastencode und -Modifier). Standard: F13 ohne Zusatztasten.
+    @Published var hotKeyCode: Int { didSet { defaults.set(hotKeyCode, forKey: Keys.hotKeyCode) } }
+    @Published var hotKeyModifiers: Int { didSet { defaults.set(hotKeyModifiers, forKey: Keys.hotKeyModifiers) } }
+    @Published var hotKeyLabel: String { didSet { defaults.set(hotKeyLabel, forKey: Keys.hotKeyLabel) } }
+    @Published var hotKeyEnabled: Bool { didSet { defaults.set(hotKeyEnabled, forKey: Keys.hotKeyEnabled) } }
+
     private enum Keys {
+        static let photoshopTargetDisplay = "photoshopTargetDisplay"
+        static let photoshopFitOnScreen = "photoshopFitOnScreen"
+        static let hotKeyCode = "hotKeyCode"
+        static let hotKeyModifiers = "hotKeyModifiers"
+        static let hotKeyLabel = "hotKeyLabel"
+        static let hotKeyEnabled = "hotKeyEnabled"
         static let restoreEnabled = "restoreEnabled"
         static let restoreOnDisplayChange = "restoreOnDisplayChange"
         static let paused = "paused"
@@ -31,11 +47,23 @@ final class Preferences: ObservableObject {
             Keys.paused: false,
             Keys.autoCheckUpdates: true,
             Keys.autoInstallUpdates: true,
+            Keys.photoshopTargetDisplay: "",
+            Keys.photoshopFitOnScreen: true,
+            Keys.hotKeyCode: 105, // F13
+            Keys.hotKeyModifiers: 0,
+            Keys.hotKeyLabel: "F13",
+            Keys.hotKeyEnabled: true,
         ])
         restoreEnabled = defaults.bool(forKey: Keys.restoreEnabled)
         restoreOnDisplayChange = defaults.bool(forKey: Keys.restoreOnDisplayChange)
         paused = defaults.bool(forKey: Keys.paused)
         autoCheckUpdates = defaults.bool(forKey: Keys.autoCheckUpdates)
         autoInstallUpdates = defaults.bool(forKey: Keys.autoInstallUpdates)
+        photoshopTargetDisplay = defaults.string(forKey: Keys.photoshopTargetDisplay) ?? ""
+        photoshopFitOnScreen = defaults.bool(forKey: Keys.photoshopFitOnScreen)
+        hotKeyCode = defaults.integer(forKey: Keys.hotKeyCode)
+        hotKeyModifiers = defaults.integer(forKey: Keys.hotKeyModifiers)
+        hotKeyLabel = defaults.string(forKey: Keys.hotKeyLabel) ?? "F13"
+        hotKeyEnabled = defaults.bool(forKey: Keys.hotKeyEnabled)
     }
 }

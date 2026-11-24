@@ -72,6 +72,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(pauseItem)
 
         menu.addItem(.separator())
+        let label = prefs.hotKeyEnabled ? "  (\(prefs.hotKeyLabel))" : ""
+        let psItem = item("Photoshop-Duplikat auf 2. Bildschirm\(label)", #selector(photoshopDuplicate))
+        psItem.isEnabled = AX.isTrusted && PhotoshopDuplicator.shared.runningPhotoshop() != nil
+        menu.addItem(psItem)
+
+        menu.addItem(.separator())
         if let staged = Updater.shared.stagedVersion {
             menu.addItem(item("Update \(staged) jetzt installieren", #selector(installUpdate)))
         }
@@ -104,6 +110,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func restoreNow() { WindowTracker.shared.restoreAll(force: true) }
 
     @objc private func togglePause() { Preferences.shared.paused.toggle() }
+
+    @objc private func photoshopDuplicate() { PhotoshopDuplicator.shared.trigger() }
 
     @objc private func installUpdate() { Updater.shared.installNow() }
 

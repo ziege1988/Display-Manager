@@ -30,6 +30,17 @@
     <string>public.app-category.utilities</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>io.github.ziege1988.displaymanager</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>displaymanager</string>
+            </array>
+        </dict>
+    </array>
     <key>NSHumanReadableCopyright</key>
     <string>Display Manager</string>
 </dict>

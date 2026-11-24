@@ -18,6 +18,28 @@ Eine kleine Hintergrund-App für macOS, die nur in der Menüleiste lebt. Sie mer
 - **Updates** lassen sich unter *Einstellungen › Updates* ansehen und installieren. Die App sucht alle 6 Stunden selbst nach Updates, lädt sie und installiert sie beim nächsten Start (z. B. nach einem Neustart des Mac).
 - **Apps ignorieren oder vergessen** unter *Einstellungen › Apps*.
 
+## Photoshop: Duplikat auf dem 2. Bildschirm
+
+Gedacht für die Arbeit an einem Grafiktablett mit Bildschirm (z. B. Wacom): Auf dem Tablett arbeitest du hineingezoomt, auf dem zweiten Bildschirm siehst du live die Übersicht.
+
+**Ein Knopfdruck** (Standard: Taste **F13**) löst diese Schritte aus:
+
+1. **Fenster › Anordnen › Neues Fenster für „…“**: eine zweite *Ansicht* desselben Dokuments, kein neues Dokument und keine Ebene.
+2. **Fenster › Anordnen › In Fenster verschiebbar machen**: löst das Duplikat aus der Reiterleiste.
+3. Das Duplikat wird auf den in *Einstellungen › Photoshop* gewählten Bildschirm gelegt, und **das Fenster füllt den Bildschirm ganz aus**.
+4. Optional **Ansicht › Ganzes Bild**, damit das Duplikat die Übersicht zeigt.
+5. Der Fokus springt zurück auf das Original. Du arbeitest sofort weiter.
+
+Ist das Duplikat schon offen, wird es nur wieder auf den Zielbildschirm gelegt, ohne ein zweites zu erzeugen. Display Manager klickt dabei nur die Photoshop-Menüs an, wie du es von Hand tun würdest. Es wird nichts in Photoshop installiert.
+
+**Auslöser**
+- **Taste:** F13 (Standard) oder eine eigene Taste unter *Einstellungen › Photoshop* aufnehmen.
+- **Loupedeck CT / Wacom ExpressKey:** dort eine Taste mit der Aktion „Tastenkürzel“ belegen und F13 (bzw. deine Taste) eintragen.
+- **Link-Befehl:** `displaymanager://photoshop-duplikat`. Er funktioniert z. B. in der Kurzbefehle-App („URL öffnen“), in jeder Software, die Links öffnen kann, oder im Terminal: `open displaymanager://photoshop-duplikat`.
+- **Menüleiste:** „Photoshop-Duplikat auf 2. Bildschirm“.
+
+Falls etwas nicht klappt, unter *Einstellungen › Photoshop* auf **„Diagnose kopieren“** klicken und den Text weitergeben. Er enthält die Menü- und Fensterdaten von Photoshop, aber keine Bildinhalte.
+
 ## Installation
 
 1. Unter [Releases](https://github.com/ziege1988/Display-Manager/releases) die Datei `Display-Manager.zip` herunterladen und entpacken.
