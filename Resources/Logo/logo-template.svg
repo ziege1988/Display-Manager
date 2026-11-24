@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 104 104">
+  <!-- Display Manager: zwei ineinandergreifende Bildschirme (Template für die Menüleiste) -->
+  <defs>
+    <mask id="mA" maskUnits="userSpaceOnUse" x="-10" y="-10" width="120" height="120">
+      <rect x="-10" y="-10" width="120" height="120" fill="#fff"/>
+      <line x1="48" y1="46" x2="48" y2="60" stroke="#000" stroke-width="14"/>
+    </mask>
+    <mask id="mB" maskUnits="userSpaceOnUse" x="-10" y="-10" width="120" height="120">
+      <rect x="-10" y="-10" width="120" height="120" fill="#fff"/>
+      <line x1="64" y1="30" x2="64" y2="44" stroke="#000" stroke-width="14"/>
+    </mask>
+  </defs>
+  <g fill="none" stroke="#000" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <g mask="url(#mA)">
+      <rect x="0" y="13" width="64" height="40" rx="5"/>
+      <path d="M32 53V64M26 64H38"/>
+    </g>
+    <g mask="url(#mB)">
+      <rect x="48" y="37" width="48" height="36" rx="5"/>
+      <path d="M72 73V83M65 83H79"/>
+    </g>
+  </g>
+</svg>

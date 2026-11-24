@@ -1,0 +1,10 @@
+.build/
+build/
+.swiftpm/
+*.xcodeproj/
+DerivedData/
+.DS_Store
+# Signierschlüssel niemals einchecken
+*.p12
+*.pem
+signing/
