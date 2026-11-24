@@ -78,6 +78,12 @@ macOS bindet die Freigabe *Bedienungshilfen* an die Signatur der App. Ohne feste
 
 Zusätzlich prüft der Updater dann, ob ein Update mit **demselben** Zertifikat signiert ist, und verwirft andere Updates.
 
+### Meldung „Bedienungshilfen freigeben“, obwohl schon aktiviert
+
+Dann gehört der Eintrag noch zu einer früheren Version. Ein- und Ausschalten hilft nicht. Lösung: in der Menüleiste bzw. unter *Einstellungen › Allgemein* auf **„Freigabe reparieren“** klicken und anschließend erneut freigeben. Von Hand geht es so: unter *Datenschutz & Sicherheit › Bedienungshilfen* „Display Manager“ mit **„−“** entfernen, die App neu starten und wieder freigeben. Im Terminal: `tccutil reset Accessibility io.github.ziege1988.displaymanager`.
+
+Ab Version 0.2.2 werden Builds ohne Zertifikat mit einer festen Signatur-Anforderung (nur Bundle-ID) signiert, damit die Freigabe Updates überstehen soll.
+
 ## Selbst bauen
 
 ```bash

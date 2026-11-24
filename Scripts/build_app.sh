@@ -28,8 +28,12 @@ echo "▶︎ Signiere …"
 if [ -n "${SIGN_IDENTITY:-}" ]; then
   codesign --force --sign "$SIGN_IDENTITY" "$APP"
 else
-  echo "  (kein Zertifikat – Ad-hoc-Signatur)"
-  codesign --force --sign - "$APP"
+  # Ohne Zertifikat: Ad-hoc-Signatur, aber mit fester Signatur-Anforderung (nur Bundle-ID).
+  # Normalerweise wäre sie an den Prüfwert (cdhash) gebunden, der sich mit jedem Build ändert –
+  # dann verliert macOS nach jedem Update die Bedienungshilfen-Freigabe.
+  echo "  (kein Zertifikat – Ad-hoc-Signatur mit fester Anforderung)"
+  codesign --force --sign - \
+    --requirements '=designated => identifier "io.github.ziege1988.displaymanager"' "$APP"
 fi
 codesign --verify --verbose=2 "$APP"
 codesign -dr - "$APP" 2>&1 | tail -n 1

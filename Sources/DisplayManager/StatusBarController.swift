@@ -44,6 +44,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         if !AX.isTrusted {
             menu.addItem(item("⚠︎ Bedienungshilfen-Zugriff erteilen …", #selector(grantAccess)))
+            menu.addItem(item("Freigabe reparieren (wenn schon aktiviert) …", #selector(repairAccess)))
         } else if prefs.paused {
             menu.addItem(disabled("Pausiert – Fenster werden nicht gemerkt"))
         } else {
@@ -101,6 +102,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         AX.requestTrust()
         AX.openAccessibilitySettings()
     }
+
+    @objc private func repairAccess() { AX.resetAndRequestTrust() }
 
     @objc private func saveNow() {
         WindowTracker.shared.snapshot()

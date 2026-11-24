@@ -81,6 +81,14 @@ private struct GeneralTab: View {
                         }
                     }
                 }
+                if !trusted {
+                    HStack {
+                        Text("Schon aktiviert, aber die Meldung bleibt? Dann gehört der Eintrag noch zur vorherigen Version.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Freigabe reparieren") { AX.resetAndRequestTrust() }
+                    }
+                }
             }
             Section("Verhalten") {
                 Toggle("Beim Anmelden automatisch starten", isOn: $loginEnabled)

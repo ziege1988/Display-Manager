@@ -11,6 +11,28 @@ enum AX {
         _ = AXIsProcessTrustedWithOptions(options)
     }
 
+    /// Repariert eine „hängende“ Freigabe: Nach einem Update gehört der Eintrag in den
+    /// Bedienungshilfen manchmal noch zur alten Version (anderer Signatur-Prüfwert).
+    /// Ein- und Ausschalten hilft dann nicht – der Eintrag muss entfernt und neu angelegt werden.
+    static func resetAndRequestTrust() {
+        if let bundleID = Bundle.main.bundleIdentifier {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+            process.arguments = ["reset", "Accessibility", bundleID]
+            do {
+                try process.run()
+                process.waitUntilExit()
+                Log.general.info("Bedienungshilfen-Eintrag zurückgesetzt (Status \(process.terminationStatus))")
+            } catch {
+                Log.general.error("tccutil fehlgeschlagen: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            requestTrust()
+            openAccessibilitySettings()
+        }
+    }
+
     static func openAccessibilitySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
