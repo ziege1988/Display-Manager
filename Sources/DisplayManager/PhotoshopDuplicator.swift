@@ -42,7 +42,8 @@ final class PhotoshopDuplicator: ObservableObject {
             case .photoshopNotRunning: return "Photoshop ist nicht geöffnet."
             case .noDocument: return "In Photoshop ist kein Dokument geöffnet."
             case .menuNotFound(let name): return "Menüpunkt „\(name)“ nicht gefunden. Bitte „Diagnose kopieren“ nutzen."
-            case .noNewWindow: return "Photoshop hat kein neues Fenster erzeugt."
+            case .noNewWindow:
+                return "Das Duplikat ließ sich nicht als eigenes Fenster lösen (bleibt Reiter). Diagnose liegt in „Application Support/Display Manager/photoshop-diagnose.txt“."
             case .noTargetDisplay: return "Kein zweiter Bildschirm angeschlossen."
             }
         }
@@ -131,19 +132,27 @@ final class PhotoshopDuplicator: ObservableObject {
         press(newWindowItem)
         try await sleep(0.5)
 
-        // 2. Fenster › Anordnen › In Fenster verschiebbar machen (löst das Duplikat aus der Reiterleiste)
-        if let floatItem = findArrangeItem(appElement, matching: { Titles.floatInWindow.contains($0) }),
-           AX.bool(floatItem, kAXEnabledAttribute as String) != false {
-            press(floatItem)
-            try await sleep(0.4)
+        // 2. Fenster › Anordnen › In Fenster verschiebbar machen (löst das Duplikat aus der Reiterleiste).
+        //    Photoshop meldet den Punkt direkt nach Schritt 1 teils fälschlich als inaktiv – daher
+        //    ohne Prüfung drücken und bei Bedarf wiederholen.
+        var duplicate = findNewWindow(appElement, before: before, docName: docName)
+        var floatFound = false
+        for attempt in 0..<3 where duplicate == nil {
+            if let floatItem = findArrangeItem(appElement, matching: Self.isFloatInWindow) {
+                floatFound = true
+                press(floatItem)
+            }
+            // 3. Das neue (schwebende) Fenster finden
+            for _ in 0..<(attempt == 0 ? 12 : 8) {
+                try await sleep(0.12)
+                duplicate = findNewWindow(appElement, before: before, docName: docName)
+                if duplicate != nil { break }
+            }
         }
-
-        // 3. Das neue Fenster finden
-        var duplicate: AXUIElement?
-        for _ in 0..<25 {
-            duplicate = findNewWindow(appElement, before: before, docName: docName)
-            if duplicate != nil { break }
-            try await sleep(0.12)
+        if duplicate == nil {
+            saveDiagnosticsFile()
+            if !floatFound { throw DuplicateError.menuNotFound("Fenster › Anordnen › In Fenster verschiebbar machen") }
+            throw DuplicateError.noNewWindow
         }
         guard let duplicate else { throw DuplicateError.noNewWindow }
         WindowTracker.shared.ignore(duplicate)
@@ -189,10 +198,12 @@ final class PhotoshopDuplicator: ObservableObject {
         return others.first { !$0.isBuiltin } ?? others.first
     }
 
-    /// „Bild.psd @ 33,3% (RGB/8)“ → „Bild.psd“
+    /// „Bild.psd @ 33,3% (RGB/8)“ bzw. „Bild.psd bei 50% (RGB/8)“ → „Bild.psd“
     static func documentName(_ title: String) -> String {
         var name = title
-        if let at = name.range(of: " @ ") { name = String(name[..<at.lowerBound]) }
+        for separator in [" @ ", " bei ", " at "] {
+            if let range = name.range(of: separator) { name = String(name[..<range.lowerBound]) }
+        }
         return name.trimmingCharacters(in: .whitespaces)
     }
 
@@ -255,6 +266,14 @@ final class PhotoshopDuplicator: ObservableObject {
         return Self.children(bar as! AXUIElement).first { // swiftlint:disable:this force_cast
             names.contains(Self.normalized(AX.title($0)))
         }
+    }
+
+    /// „In Fenster verschiebbar machen“ / „Float in Window“ – aber nicht „Alle in Fenstern …“ / „Float All …“.
+    static func isFloatInWindow(_ title: String) -> Bool {
+        if Titles.floatInWindow.contains(title) { return true }
+        let isFloat = title.contains("verschiebbar") || title.contains("schwebend") || title.hasPrefix("float")
+        let isAll = title.hasPrefix("alle") || title.contains(" all") || title.contains("fenstern")
+        return isFloat && !isAll
     }
 
     private func findArrangeItem(_ app: AXUIElement, matching: (String) -> Bool) -> AXUIElement? {
@@ -327,6 +346,11 @@ final class PhotoshopDuplicator: ObservableObject {
         dump(Titles.windowMenu, label: "Fenster")
         dump(Titles.viewMenu, label: "Ansicht")
         return lines.joined(separator: "\n")
+    }
+
+    private func saveDiagnosticsFile() {
+        try? diagnostics().write(to: Paths.appSupport.appendingPathComponent("photoshop-diagnose.txt"),
+                                 atomically: true, encoding: .utf8)
     }
 
     func copyDiagnosticsToClipboard() {
