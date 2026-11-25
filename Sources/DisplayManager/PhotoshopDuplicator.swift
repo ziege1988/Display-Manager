@@ -113,8 +113,10 @@ final class PhotoshopDuplicator: ObservableObject {
                 duplicates.first { Self.documentName(AX.title($0)) == docName }!
             let source = CFEqual(existing, original) ? nil : original
             guard let target = targetDisplay(excluding: source.flatMap(AX.frame)) else { throw DuplicateError.noTargetDisplay }
-            _ = await AX.applyFrameAndWait(existing, displays.visibleRect(for: target), app: appElement)
+            let existingRect = displays.visibleRect(for: target)
+            _ = await AX.applyFrameAndWait(existing, existingRect, app: appElement)
             if let source { focus(source) }
+            keepFilled(existing, existingRect, app: appElement, seconds: 6)
             return "Vorhandenes Duplikat auf „\(target.name)“ gelegt."
         }
 
@@ -164,12 +166,13 @@ final class PhotoshopDuplicator: ObservableObject {
 
         // 5. Optional im Duplikat „Ganzes Bild“, damit dort die Übersicht zu sehen ist.
         //    Ist in Photoshop „Zoomen verändert Fenstergröße“ aktiv, schrumpft das Fenster dabei
-        //    auf Bildgröße – deshalb danach erneut bildschirmfüllend aufziehen.
+        //    auf Bildgröße – bei großen Dateien (RAW, 16 Bit) auch erst nach einigen Sekunden.
+        //    Deshalb danach wieder aufziehen und eine Weile darüber wachen (Schritt 7).
         if prefs.photoshopFitOnScreen, let fitItem = findFitOnScreenItem(appElement) {
             focus(duplicate)
             try await sleep(0.2)
             press(fitItem)
-            try await sleep(0.35)
+            try await waitForSettledFrame(duplicate, maxSeconds: 3)
         }
         var filled = await AX.applyFrameAndWait(duplicate, rect, app: appElement)
 
@@ -184,12 +187,51 @@ final class PhotoshopDuplicator: ObservableObject {
 
         // 6. Zurück zum Original (auf dem Wacom) – dort wird weitergearbeitet
         focus(original)
+
+        // 7. Wächter: Verkleinert Photoshop das Duplikat verspätet wieder, sofort zurück auf Vollbild.
+        keepFilled(duplicate, rect, app: appElement, seconds: 12)
         let size = AX.frame(duplicate).map { "\(Int($0.width))×\(Int($0.height))" } ?? "?"
         let note = filled ? "" : " – Achtung: Photoshop hat die volle Größe nicht übernommen (\(size) statt \(Int(rect.width))×\(Int(rect.height))). Diagnose gespeichert."
         return "Duplikat von „\(docName.isEmpty ? "Dokument" : docName)“ auf „\(target.name)“ geöffnet\(note)."
     }
 
     // MARK: - Hilfen
+
+    /// Wartet, bis sich der Fensterrahmen nicht mehr ändert (Photoshop rechnet bei großen Bildern länger).
+    private func waitForSettledFrame(_ window: AXUIElement, maxSeconds: Double) async throws {
+        var last = AX.frame(window)
+        var stableSince = Date()
+        let deadline = Date().addingTimeInterval(maxSeconds)
+        try await sleep(0.3)
+        while Date() < deadline {
+            let current = AX.frame(window)
+            if current != last {
+                last = current
+                stableSince = Date()
+            } else if Date().timeIntervalSince(stableSince) >= 0.6 {
+                return
+            }
+            try await sleep(0.15)
+        }
+    }
+
+    /// Hält das Duplikat für einige Sekunden bildschirmfüllend.
+    private func keepFilled(_ window: AXUIElement, _ rect: CGRect, app: AXUIElement, seconds: Double) {
+        let deadline = Date().addingTimeInterval(seconds)
+        Task { @MainActor in
+            var corrections = 0
+            while Date() < deadline, corrections < 8 {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard AX.copy(window, kAXRoleAttribute as String) != nil else { return } // geschlossen
+                if NSEvent.pressedMouseButtons != 0 { return } // Nutzer greift selbst ein
+                if let current = AX.frame(window), !current.isClose(to: rect, tolerance: 3) {
+                    corrections += 1
+                    _ = await AX.applyFrameAndWait(window, rect, app: app)
+                    Log.general.info("Photoshop-Duplikat wieder bildschirmfüllend gesetzt (\(corrections))")
+                }
+            }
+        }
+    }
 
     func runningPhotoshop() -> NSRunningApplication? {
         NSWorkspace.shared.runningApplications.first {

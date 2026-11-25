@@ -20,6 +20,10 @@ struct WindowRecord: Codable, Identifiable, Equatable {
     var frames: [String: SavedFrame]
     /// Zeitpunkt der letzten Positions-/Größenänderung.
     var lastChanged: Date
+    /// Zuletzt aktiv (fokussiert) oder geschlossen – bestimmt das „zuletzt verwendete“ Fenster.
+    var lastActive: Date?
+
+    var lastUsed: Date { max(lastChanged, lastActive ?? .distantPast) }
 }
 
 /// Alle gespeicherten Fenster einer App.
@@ -76,10 +80,10 @@ final class WindowStore: ObservableObject {
         let candidates = app.windows.filter { !excluding.contains($0.id) }
         if let document, let r = candidates.first(where: { $0.document == document }) { return r }
         if !title.isEmpty,
-           let r = candidates.filter({ $0.title == title }).max(by: { $0.lastChanged < $1.lastChanged }) {
+           let r = candidates.filter({ $0.title == title }).max(by: { $0.lastUsed < $1.lastUsed }) {
             return r
         }
-        if allowFallback { return candidates.max { $0.lastChanged < $1.lastChanged } }
+        if allowFallback { return candidates.max { $0.lastUsed < $1.lastUsed } }
         return nil
     }
 
@@ -139,12 +143,12 @@ final class WindowStore: ObservableObject {
         } else {
             id = UUID()
             app.windows.append(WindowRecord(id: id, title: title, document: document,
-                                            frames: [configKey: frame], lastChanged: now))
+                                            frames: [configKey: frame], lastChanged: now, lastActive: now))
             app.lastFrames[configKey] = frame
         }
 
         if app.windows.count > Self.maxWindowsPerApp {
-            app.windows.sort { $0.lastChanged > $1.lastChanged }
+            app.windows.sort { $0.lastUsed > $1.lastUsed }
             app.windows = Array(app.windows.prefix(Self.maxWindowsPerApp))
         }
         if apps[bundleID] != app {
@@ -152,6 +156,16 @@ final class WindowStore: ObservableObject {
             scheduleSave()
         }
         return id
+    }
+
+    /// Merkt sich, dass dieses Fenster gerade benutzt (fokussiert/geschlossen) wurde.
+    func markActive(bundleID: String, recordID: UUID) {
+        guard var app = apps[bundleID], let i = app.windows.firstIndex(where: { $0.id == recordID }) else { return }
+        let now = Date()
+        app.windows[i].lastActive = now
+        app.lastUsed = now
+        apps[bundleID] = app
+        scheduleSave()
     }
 
     private static func sameGeometry(_ a: SavedFrame, _ b: SavedFrame) -> Bool {

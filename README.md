@@ -13,6 +13,8 @@ Eine kleine Hintergrund-App für macOS, die nur in der Menüleiste lebt. Sie mer
 - **Merkt sich alle Bildschirme** über eine stabile Kennung (Hersteller, Modell und Seriennummer), auch wenn sie gerade nicht angeschlossen sind.
 - **Merkt sich Fenster** je App: Bildschirm, Position und Größe. Ein Fenster wird über die Dokument-Datei, den Fenstertitel oder als zuletzt genutztes Fenster der App wiedererkannt.
 - **Speichert getrennt pro Bildschirm-Kombination.** „MacBook allein“ und „MacBook + 2 Monitore“ haben jeweils eigene Positionen.
+- **Schützt die wiederhergestellte Position.** Verschiebt oder verkleinert eine App ihr Fenster in den ersten 25 Sekunden nach dem Öffnen selbst (z. B. Photoshop beim Laden des Arbeitsbereichs), wird das korrigiert und nicht als neue Vorgabe gespeichert. Was du selbst mit der Maus machst, hat immer Vorrang.
+- **„Zuletzt verwendet“ heißt wirklich zuletzt benutzt:** Beim Start einer App zählt das zuletzt fokussierte oder geschlossene Fenster, nicht das zuletzt verschobene.
 - **Prüft nach.** Auch Apps, die sich ihre Position selbst merken, werden nach dem Öffnen mehrmals kontrolliert (nach etwa 0,25 s, 0,9 s, 2 s und 3,5 s) und bei Bedarf korrigiert. Ziehst du das Fenster in dieser Zeit selbst, hat deine Bewegung Vorrang.
 - **Holt Fenster zurück,** wenn du Monitore an- oder absteckst oder der Mac aus dem Ruhezustand aufwacht.
 - **Updates** lassen sich unter *Einstellungen › Updates* ansehen und installieren. Die App sucht alle 6 Stunden selbst nach Updates, lädt sie und installiert sie beim nächsten Start (z. B. nach einem Neustart des Mac).
@@ -30,7 +32,7 @@ Gedacht für die Arbeit an einem Grafiktablett mit Bildschirm (z. B. Wacom): Auf
 4. Optional **Ansicht › Ganzes Bild**, damit das Duplikat die Übersicht zeigt.
 5. Der Fokus springt zurück auf das Original. Du arbeitest sofort weiter.
 
-Ist in Photoshop „Zoomen verändert Fenstergröße“ aktiv, schrumpft „Ganzes Bild“ das Fenster auf Bildgröße. Display Manager zieht es danach automatisch wieder bildschirmfüllend auf.
+Ist in Photoshop „Zoomen verändert Fenstergröße“ aktiv, schrumpft „Ganzes Bild“ das Fenster auf Bildgröße, bei großen Dateien auch erst nach einigen Sekunden. Display Manager wartet das ab, zieht das Fenster wieder bildschirmfüllend auf und hält es noch etwa 12 Sekunden lang so. Am saubersten ist es, diese Option in Photoshop abzuschalten: *Photoshop › Einstellungen › Werkzeuge*.
 
 Ist das Duplikat schon offen, wird es nur wieder auf den Zielbildschirm gelegt, ohne ein zweites zu erzeugen. Display Manager klickt dabei nur die Photoshop-Menüs an, wie du es von Hand tun würdest. Es wird nichts in Photoshop installiert.
 

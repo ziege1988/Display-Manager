@@ -213,6 +213,13 @@ final class AppObserver {
         var graceUntil: Date
         var userTookOver = false
         var lastSaved: CGRect?
+        /// Ziel der Wiederherstellung. Bis `protectUntil` werden Verschiebungen, die nicht vom
+        /// Nutzer kommen (z. B. Photoshop lädt verspätet seinen Arbeitsbereich), rückgängig gemacht
+        /// statt gespeichert.
+        var restoredTarget: CGRect?
+        var protectUntil = Date.distantPast
+        var protectCorrections = 0
+        var protectWork: DispatchWorkItem?
         var saveWork: DispatchWorkItem?
 
         init(element: AXUIElement, graceUntil: Date) {
@@ -228,6 +235,9 @@ final class AppObserver {
     static let restoreDelays: [TimeInterval] = [0.25, 0.9, 2.0, 3.5, 5.0]
     static let graceDuration: TimeInterval = 6.5
     static let launchPhaseDuration: TimeInterval = 20
+    /// So lange nach dem Öffnen werden fremde (nicht vom Nutzer ausgelöste) Änderungen korrigiert.
+    static let protectDuration: TimeInterval = 25
+    static let maxProtectCorrections = 6
 
     let pid: pid_t
     let bundleID: String
@@ -304,6 +314,9 @@ final class AppObserver {
         case "AXFocusedWindowChanged", "AXMainWindowChanged":
             // Manche Apps melden neue Fenster nicht – über den Fokus trotzdem finden.
             discover(element, allowRestore: inLaunchPhase)
+            if let tracked = windows[WindowKey(element)], let recordID = tracked.recordID, !tracked.inGrace {
+                tracker?.store.markActive(bundleID: bundleID, recordID: recordID)
+            }
         case "AXMoved", "AXResized":
             windowChanged(element)
         case "AXUIElementDestroyed":
@@ -367,11 +380,30 @@ final class AppObserver {
             discover(element, allowRestore: false)
             return
         }
-        if tracked.inGrace {
-            // Zieht der Nutzer selbst am Fenster, hat er Vorrang.
-            guard NSEvent.pressedMouseButtons != 0 else { return }
+        let userDriven = NSEvent.pressedMouseButtons != 0
+        if userDriven {
+            // Zieht der Nutzer selbst am Fenster, hat er immer Vorrang.
             tracked.userTookOver = true
             tracked.graceUntil = .distantPast
+            tracked.protectUntil = .distantPast
+            tracked.restoredTarget = nil
+        } else if tracked.inGrace {
+            return
+        } else if let target = tracked.restoredTarget, Date() < tracked.protectUntil,
+                  tracked.protectCorrections < Self.maxProtectCorrections {
+            // Die App hat das Fenster nach der Wiederherstellung selbst verschoben/verkleinert –
+            // zurücksetzen statt diese Position als neue Vorgabe zu speichern.
+            tracked.protectWork?.cancel()
+            let work = DispatchWorkItem { [weak self, weak tracked] in
+                guard let self, let tracked, !self.stopped, NSEvent.pressedMouseButtons == 0,
+                      let current = AX.frame(tracked.element), !current.isClose(to: target) else { return }
+                tracked.protectCorrections += 1
+                AX.applyFrame(tracked.element, target, app: self.appElement)
+                Log.windows.info("\(self.name, privacy: .public): Fremde Änderung korrigiert (\(tracked.protectCorrections))")
+            }
+            tracked.protectWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+            return
         }
         tracked.saveWork?.cancel()
         let work = DispatchWorkItem { [weak self, weak tracked] in
@@ -391,6 +423,9 @@ final class AppObserver {
     private func windowClosed(_ element: AXUIElement) {
         guard let tracked = windows.removeValue(forKey: WindowKey(element)) else { return }
         tracked.saveWork?.cancel()
+        tracked.protectWork?.cancel()
+        // Das zuletzt geschlossene Fenster ist beim nächsten Öffnen das „zuletzt verwendete“.
+        if let recordID = tracked.recordID { tracker?.store.markActive(bundleID: bundleID, recordID: recordID) }
     }
 
     // MARK: - Abgleich & Wiederherstellung
@@ -430,6 +465,8 @@ final class AppObserver {
         let allowFallback = inLaunchPhase || windows.count == 1
         tracked.recordID = match(tracked, allowFallback: allowFallback)?.id
         guard let target = targetRect(for: tracked, useAppFallback: allowFallback) else { return }
+        tracked.restoredTarget = target
+        tracked.protectUntil = Date().addingTimeInterval(Self.protectDuration)
 
         if !current.isClose(to: target) {
             AX.applyFrame(tracked.element, target, app: appElement)
@@ -466,7 +503,7 @@ final class AppObserver {
             windows[key]?.saveWork?.cancel()
             windows.removeValue(forKey: key)
         }
-        for tracked in windows.values where !tracked.inGrace {
+        for tracked in windows.values where !tracked.inGrace && !(tracked.restoredTarget != nil && Date() < tracked.protectUntil) {
             save(tracked)
         }
     }
