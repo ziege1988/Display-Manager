@@ -32,7 +32,7 @@ Gedacht für die Arbeit an einem Grafiktablett mit Bildschirm (z. B. Wacom): Auf
 4. Optional **Ansicht › Ganzes Bild**, damit das Duplikat die Übersicht zeigt.
 5. Der Fokus springt zurück auf das Original. Du arbeitest sofort weiter.
 
-Ist in Photoshop „Zoomen verändert Fenstergröße“ aktiv, schrumpft „Ganzes Bild“ das Fenster auf Bildgröße, bei großen Dateien auch erst nach einigen Sekunden. Display Manager wartet das ab, zieht das Fenster wieder bildschirmfüllend auf und hält es noch etwa 12 Sekunden lang so. Am saubersten ist es, diese Option in Photoshop abzuschalten: *Photoshop › Einstellungen › Werkzeuge*.
+Ist in Photoshop „Zoomen verändert Fenstergröße“ aktiv, schrumpft „Ganzes Bild“ das Fenster auf Bildgröße, bei großen Dateien auch erst nach einigen Sekunden. Display Manager wartet das ab und zieht das Fenster wieder bildschirmfüllend auf. Solange das Duplikat offen ist, achtet er dauerhaft darauf, auch nach *Verflüssigen*, Filtern oder Zoomen. Ziehst du das Duplikat selbst mit der Maus auf eine andere Größe, wird diese übernommen. Am saubersten ist es, diese Option in Photoshop abzuschalten: *Photoshop › Einstellungen › Werkzeuge*.
 
 Ist das Duplikat schon offen, wird es nur wieder auf den Zielbildschirm gelegt, ohne ein zweites zu erzeugen. Display Manager klickt dabei nur die Photoshop-Menüs an, wie du es von Hand tun würdest. Es wird nichts in Photoshop installiert.
 
@@ -46,6 +46,14 @@ Ist das Duplikat schon offen, wird es nur wieder auf den Zielbildschirm gelegt, 
 - **Menüleiste:** „Photoshop-Duplikat auf 2. Bildschirm“.
 
 Falls etwas nicht klappt, unter *Einstellungen › Photoshop* auf **„Diagnose kopieren“** klicken und den Text weitergeben. Er enthält die Menü- und Fensterdaten von Photoshop, aber keine Bildinhalte.
+
+## Strom: Steckdose über Kurzbefehle schalten
+
+Unter *Einstellungen › Strom* lassen sich zwei Kurzbefehle wählen (Standard: „Strom ein“ und „Strom aus“, z. B. mit einer Apple-Home-Steckdose):
+
+- **Beim Ausschalten des Mac** führt Display Manager „Strom aus“ aus. Der Mac wartet dafür höchstens 20 Sekunden. Beim Neustart bleibt der Strom an, das ist abschaltbar.
+- **Nach Akkustand (MacBook):** Bei 20 % oder weniger „Strom ein“, ab 80 % „Strom aus“. Beide Grenzen sind einstellbar. Ob die Steckdose wirklich geschaltet hat, erkennt Display Manager daran, ob das Netzteil Strom liefert.
+- **Befehle:** `displaymanager://strom-ein` und `displaymanager://strom-aus`, außerdem Einträge in der Menüleiste.
 
 ## Installation
 

@@ -26,7 +26,23 @@ final class Preferences: ObservableObject {
     @Published var hotKeyLabel: String { didSet { defaults.set(hotKeyLabel, forKey: Keys.hotKeyLabel) } }
     @Published var hotKeyEnabled: Bool { didSet { defaults.set(hotKeyEnabled, forKey: Keys.hotKeyEnabled) } }
 
+    /// Steckdose (Kurzbefehle) – Namen der Kurzbefehle und Verhalten.
+    @Published var powerOnShortcut: String { didSet { defaults.set(powerOnShortcut, forKey: Keys.powerOnShortcut) } }
+    @Published var powerOffShortcut: String { didSet { defaults.set(powerOffShortcut, forKey: Keys.powerOffShortcut) } }
+    @Published var powerOffOnShutdown: Bool { didSet { defaults.set(powerOffOnShutdown, forKey: Keys.powerOffOnShutdown) } }
+    @Published var powerOffOnRestart: Bool { didSet { defaults.set(powerOffOnRestart, forKey: Keys.powerOffOnRestart) } }
+    @Published var batteryControlEnabled: Bool { didSet { defaults.set(batteryControlEnabled, forKey: Keys.batteryControlEnabled) } }
+    @Published var batteryLowThreshold: Int { didSet { defaults.set(batteryLowThreshold, forKey: Keys.batteryLowThreshold) } }
+    @Published var batteryHighThreshold: Int { didSet { defaults.set(batteryHighThreshold, forKey: Keys.batteryHighThreshold) } }
+
     private enum Keys {
+        static let powerOnShortcut = "powerOnShortcut"
+        static let powerOffShortcut = "powerOffShortcut"
+        static let powerOffOnShutdown = "powerOffOnShutdown"
+        static let powerOffOnRestart = "powerOffOnRestart"
+        static let batteryControlEnabled = "batteryControlEnabled"
+        static let batteryLowThreshold = "batteryLowThreshold"
+        static let batteryHighThreshold = "batteryHighThreshold"
         static let photoshopTargetDisplay = "photoshopTargetDisplay"
         static let photoshopFitOnScreen = "photoshopFitOnScreen"
         static let hotKeyCode = "hotKeyCode"
@@ -53,6 +69,13 @@ final class Preferences: ObservableObject {
             Keys.hotKeyModifiers: 0,
             Keys.hotKeyLabel: "F13",
             Keys.hotKeyEnabled: true,
+            Keys.powerOnShortcut: "Strom ein",
+            Keys.powerOffShortcut: "Strom aus",
+            Keys.powerOffOnShutdown: true,
+            Keys.powerOffOnRestart: false,
+            Keys.batteryControlEnabled: true,
+            Keys.batteryLowThreshold: 20,
+            Keys.batteryHighThreshold: 80,
         ])
         restoreEnabled = defaults.bool(forKey: Keys.restoreEnabled)
         restoreOnDisplayChange = defaults.bool(forKey: Keys.restoreOnDisplayChange)
@@ -65,5 +88,12 @@ final class Preferences: ObservableObject {
         hotKeyModifiers = defaults.integer(forKey: Keys.hotKeyModifiers)
         hotKeyLabel = defaults.string(forKey: Keys.hotKeyLabel) ?? "F13"
         hotKeyEnabled = defaults.bool(forKey: Keys.hotKeyEnabled)
+        powerOnShortcut = defaults.string(forKey: Keys.powerOnShortcut) ?? "Strom ein"
+        powerOffShortcut = defaults.string(forKey: Keys.powerOffShortcut) ?? "Strom aus"
+        powerOffOnShutdown = defaults.bool(forKey: Keys.powerOffOnShutdown)
+        powerOffOnRestart = defaults.bool(forKey: Keys.powerOffOnRestart)
+        batteryControlEnabled = defaults.bool(forKey: Keys.batteryControlEnabled)
+        batteryLowThreshold = defaults.integer(forKey: Keys.batteryLowThreshold)
+        batteryHighThreshold = defaults.integer(forKey: Keys.batteryHighThreshold)
     }
 }

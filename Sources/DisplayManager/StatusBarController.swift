@@ -79,6 +79,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(psItem)
 
         menu.addItem(.separator())
+        let power = PowerManager.shared
+        if let battery = power.battery {
+            let source = battery.onAC ? (battery.isCharging ? "lädt" : "Netzteil") : "Akku"
+            menu.addItem(disabled("Akku \(battery.level) % · \(source)"))
+        }
+        menu.addItem(item("Strom ein", #selector(powerOn)))
+        menu.addItem(item("Strom aus", #selector(powerOff)))
+
+        menu.addItem(.separator())
         if let staged = Updater.shared.stagedVersion {
             menu.addItem(item("Update \(staged) jetzt installieren", #selector(installUpdate)))
         }
@@ -115,6 +124,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func togglePause() { Preferences.shared.paused.toggle() }
 
     @objc private func photoshopDuplicate() { PhotoshopDuplicator.shared.trigger() }
+
+    @objc private func powerOn() { PowerManager.shared.switchPower(on: true, reason: "Menüleiste") }
+
+    @objc private func powerOff() { PowerManager.shared.switchPower(on: false, reason: "Menüleiste") }
 
     @objc private func installUpdate() { Updater.shared.installNow() }
 

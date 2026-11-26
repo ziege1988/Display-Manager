@@ -19,6 +19,27 @@ final class PhotoshopDuplicator: ObservableObject {
     /// Bereits erzeugte Duplikate (für erneutes Platzieren nach Bildschirmwechsel).
     private var duplicates: [AXUIElement] = []
 
+    /// Dauerhafter Wächter: Photoshop setzt Dokumentfenster nach manchen Aktionen
+    /// (Verflüssigen, Filter, Zoom) wieder auf Bildgröße zurück.
+    private final class Guarded {
+        let window: AXUIElement
+        let appElement: AXUIElement
+        var target: CGRect
+        var lastFrame: CGRect?
+        var stableSince = Date()
+        var userAdjusting = false
+        var recentCorrections: [Date] = []
+        var pausedUntil = Date.distantPast
+
+        init(window: AXUIElement, appElement: AXUIElement, target: CGRect) {
+            self.window = window
+            self.appElement = appElement
+            self.target = target
+        }
+    }
+    private var guarded: [Guarded] = []
+    private var guardTimer: Timer?
+
     private let prefs = Preferences.shared
     private let displays = DisplayRegistry.shared
 
@@ -72,7 +93,9 @@ final class PhotoshopDuplicator: ObservableObject {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         for window in duplicates {
             guard let target = targetDisplay(excluding: nil) else { return }
-            AX.applyFrame(window, displays.visibleRect(for: target), app: appElement)
+            let rect = displays.visibleRect(for: target)
+            AX.applyFrame(window, rect, app: appElement)
+            keepFilled(window, rect, app: appElement)
         }
     }
 
@@ -116,7 +139,7 @@ final class PhotoshopDuplicator: ObservableObject {
             let existingRect = displays.visibleRect(for: target)
             _ = await AX.applyFrameAndWait(existing, existingRect, app: appElement)
             if let source { focus(source) }
-            keepFilled(existing, existingRect, app: appElement, seconds: 6)
+            keepFilled(existing, existingRect, app: appElement)
             return "Vorhandenes Duplikat auf „\(target.name)“ gelegt."
         }
 
@@ -188,8 +211,9 @@ final class PhotoshopDuplicator: ObservableObject {
         // 6. Zurück zum Original (auf dem Wacom) – dort wird weitergearbeitet
         focus(original)
 
-        // 7. Wächter: Verkleinert Photoshop das Duplikat verspätet wieder, sofort zurück auf Vollbild.
-        keepFilled(duplicate, rect, app: appElement, seconds: 12)
+        // 7. Wächter: Verkleinert Photoshop das Duplikat später wieder (z. B. nach Verflüssigen),
+        //    sofort zurück auf Vollbild – solange das Duplikat offen ist.
+        keepFilled(duplicate, rect, app: appElement)
         let size = AX.frame(duplicate).map { "\(Int($0.width))×\(Int($0.height))" } ?? "?"
         let note = filled ? "" : " – Achtung: Photoshop hat die volle Größe nicht übernommen (\(size) statt \(Int(rect.width))×\(Int(rect.height))). Diagnose gespeichert."
         return "Duplikat von „\(docName.isEmpty ? "Dokument" : docName)“ auf „\(target.name)“ geöffnet\(note)."
@@ -215,21 +239,69 @@ final class PhotoshopDuplicator: ObservableObject {
         }
     }
 
-    /// Hält das Duplikat für einige Sekunden bildschirmfüllend.
-    private func keepFilled(_ window: AXUIElement, _ rect: CGRect, app: AXUIElement, seconds: Double) {
-        let deadline = Date().addingTimeInterval(seconds)
-        Task { @MainActor in
-            var corrections = 0
-            while Date() < deadline, corrections < 8 {
-                try? await Task.sleep(nanoseconds: 300_000_000)
-                guard AX.copy(window, kAXRoleAttribute as String) != nil else { return } // geschlossen
-                if NSEvent.pressedMouseButtons != 0 { return } // Nutzer greift selbst ein
-                if let current = AX.frame(window), !current.isClose(to: rect, tolerance: 3) {
-                    corrections += 1
-                    _ = await AX.applyFrameAndWait(window, rect, app: app)
-                    Log.general.info("Photoshop-Duplikat wieder bildschirmfüllend gesetzt (\(corrections))")
-                }
+    /// Hält das Duplikat dauerhaft bildschirmfüllend, solange es offen ist.
+    private func keepFilled(_ window: AXUIElement, _ rect: CGRect, app: AXUIElement) {
+        if let existing = guarded.first(where: { CFEqual($0.window, window) }) {
+            existing.target = rect
+            existing.pausedUntil = .distantPast
+        } else {
+            guarded.append(Guarded(window: window, appElement: app, target: rect))
+        }
+        if guardTimer == nil {
+            guardTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+                self?.checkGuarded()
             }
+        }
+    }
+
+    /// Mauszeiger (in AX-Koordinaten) innerhalb bzw. am Rand des Rahmens?
+    private static func pointerIsOver(_ frame: CGRect) -> Bool {
+        guard let primary = NSScreen.screens.first else { return false }
+        let p = NSEvent.mouseLocation
+        let point = CGPoint(x: p.x, y: primary.frame.height - p.y)
+        return frame.insetBy(dx: -12, dy: -12).contains(point)
+    }
+
+    private func checkGuarded() {
+        // Geschlossene Duplikate entfernen.
+        guarded.removeAll { AX.copy($0.window, kAXRoleAttribute as String) == nil }
+        if guarded.isEmpty {
+            guardTimer?.invalidate()
+            guardTimer = nil
+            return
+        }
+        let mouseDown = NSEvent.pressedMouseButtons != 0
+        let now = Date()
+        for item in guarded {
+            guard let frame = AX.frame(item.window) else { continue }
+            if frame != item.lastFrame {
+                // Zieht der Nutzer gerade selbst am Duplikat, gilt seine Größe danach als neues Ziel.
+                // (Nur wenn der Zeiger dabei auf dem Duplikat ist – ein Stift-Klick auf dem Wacom,
+                // z. B. „OK“ bei Verflüssigen, zählt nicht.)
+                if mouseDown, item.lastFrame != nil, Self.pointerIsOver(frame) { item.userAdjusting = true }
+                item.lastFrame = frame
+                item.stableSince = now
+                continue
+            }
+            if mouseDown { continue }
+            if item.userAdjusting {
+                item.userAdjusting = false
+                item.target = frame
+                Log.general.info("Photoshop-Duplikat: neue Größe vom Nutzer übernommen")
+                continue
+            }
+            // Erst eingreifen, wenn Photoshop fertig ist (Rahmen 0,5 s unverändert).
+            guard now.timeIntervalSince(item.stableSince) >= 0.5, now >= item.pausedUntil,
+                  !frame.isClose(to: item.target, tolerance: 3) else { continue }
+            // Schutz vor Endlos-Hin-und-her, falls Photoshop dauerhaft dagegenhält.
+            item.recentCorrections = item.recentCorrections.filter { now.timeIntervalSince($0) < 30 } + [now]
+            if item.recentCorrections.count > 10 {
+                item.pausedUntil = now.addingTimeInterval(60)
+                Log.general.notice("Photoshop-Duplikat: Photoshop hält dagegen – Wächter pausiert 60 s")
+                continue
+            }
+            AX.applyFrame(item.window, item.target, app: item.appElement)
+            item.lastFrame = nil
         }
     }
 

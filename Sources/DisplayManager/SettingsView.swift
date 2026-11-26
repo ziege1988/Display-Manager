@@ -21,7 +21,7 @@ final class SettingsWindowController {
     }
 }
 
-enum SettingsTab: Hashable { case general, displays, apps, photoshop, updates }
+enum SettingsTab: Hashable { case general, displays, apps, photoshop, power, updates }
 
 final class SettingsState: ObservableObject {
     static let shared = SettingsState()
@@ -37,10 +37,11 @@ struct SettingsView: View {
             DisplaysTab().tabItem { Label("Bildschirme", systemImage: "display.2") }.tag(SettingsTab.displays)
             AppsTab().tabItem { Label("Apps", systemImage: "macwindow.on.rectangle") }.tag(SettingsTab.apps)
             PhotoshopTab().tabItem { Label("Photoshop", systemImage: "rectangle.on.rectangle") }.tag(SettingsTab.photoshop)
+            PowerTab().tabItem { Label("Strom", systemImage: "powerplug") }.tag(SettingsTab.power)
             UpdatesTab().tabItem { Label("Updates", systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.updates)
         }
         .padding()
-        .frame(width: 680, height: 560)
+        .frame(width: 720, height: 600)
     }
 }
 
@@ -330,6 +331,77 @@ private struct HotKeyRecorder: View {
         prefs.hotKeyLabel = label
         hint = ""
         NotificationCenter.default.post(name: .hotKeyChanged, object: nil)
+    }
+}
+
+// MARK: - Strom
+
+private struct PowerTab: View {
+    @ObservedObject private var prefs = Preferences.shared
+    @ObservedObject private var power = PowerManager.shared
+
+    var body: some View {
+        Form {
+            Section {
+                Text("Schaltet eine Steckdose über deine Kurzbefehle (z. B. Apple Home): beim Ausschalten des Mac und nach Akkustand.")
+                    .font(.callout).foregroundStyle(.secondary)
+                if let battery = power.battery {
+                    HStack {
+                        Image(systemName: battery.onAC ? "battery.100.bolt" : "battery.50")
+                        Text("Akku \(battery.level) % · \(battery.onAC ? (battery.isCharging ? "lädt am Netzteil" : "am Netzteil") : "auf Akku")")
+                    }
+                }
+            }
+            Section("Kurzbefehle") {
+                shortcutPicker("Strom ein", selection: $prefs.powerOnShortcut)
+                shortcutPicker("Strom aus", selection: $prefs.powerOffShortcut)
+                HStack {
+                    Button("Strom ein testen") { power.switchPower(on: true, reason: "Test") }
+                    Button("Strom aus testen") { power.switchPower(on: false, reason: "Test") }
+                    Button("Liste aktualisieren") { power.refreshShortcutList() }
+                    Spacer()
+                    if power.isRunningShortcut { ProgressView().controlSize(.small) }
+                }
+                Text(power.lastAction).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            }
+            Section("Beim Ausschalten") {
+                Toggle("Strom ausschalten, wenn der Mac ausgeschaltet wird", isOn: $prefs.powerOffOnShutdown)
+                Toggle("Auch beim Neustart ausschalten", isOn: $prefs.powerOffOnRestart)
+                Text("Der Mac wartet beim Herunterfahren, bis der Kurzbefehl ausgeführt wurde (höchstens 20 Sekunden).")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if power.hasBattery {
+                Section("Nach Akkustand") {
+                    Toggle("Automatisch nach Akkustand schalten", isOn: $prefs.batteryControlEnabled)
+                    Stepper("Strom ein bei \(prefs.batteryLowThreshold) % oder weniger",
+                            value: $prefs.batteryLowThreshold, in: 5...(max(10, prefs.batteryHighThreshold - 10)), step: 5)
+                    Stepper("Strom aus bei \(prefs.batteryHighThreshold) % oder mehr",
+                            value: $prefs.batteryHighThreshold, in: (min(95, prefs.batteryLowThreshold + 10))...100, step: 5)
+                    Text("Ob geschaltet wurde, erkennt Display Manager daran, ob das Netzteil Strom liefert.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Section("Befehle für Loupedeck & Co.") {
+                Text("displaymanager://strom-ein  ·  displaymanager://strom-aus")
+                    .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear {
+            power.refreshBattery()
+            power.refreshShortcutList()
+        }
+    }
+
+    @ViewBuilder
+    private func shortcutPicker(_ label: String, selection: Binding<String>) -> some View {
+        Picker(label, selection: selection) {
+            if !power.availableShortcuts.contains(selection.wrappedValue) {
+                Text(selection.wrappedValue.isEmpty ? "– keiner –" : "\(selection.wrappedValue) (nicht gefunden)")
+                    .tag(selection.wrappedValue)
+            }
+            ForEach(power.availableShortcuts, id: \.self) { Text($0).tag($0) }
+        }
     }
 }
 
