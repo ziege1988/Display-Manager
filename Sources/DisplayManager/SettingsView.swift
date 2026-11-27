@@ -13,11 +13,23 @@ final class SettingsWindowController {
             w.title = "Display Manager – Einstellungen"
             w.styleMask = [.titled, .closable, .miniaturizable]
             w.isReleasedWhenClosed = false
-            w.center()
             window = w
         }
+        if let window { centerOnActiveScreen(window) }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Immer mittig auf dem Bildschirm öffnen, auf dem gerade der Mauszeiger ist
+    /// (also dort, wo in der Menüleiste geklickt wurde).
+    private func centerOnActiveScreen(_ window: NSWindow) {
+        let mouse = NSEvent.mouseLocation
+        guard let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) ?? NSScreen.main
+        else { window.center(); return }
+        let area = screen.visibleFrame
+        let size = window.frame.size
+        window.setFrameOrigin(NSPoint(x: (area.midX - size.width / 2).rounded(),
+                                      y: (area.midY - size.height / 2).rounded()))
     }
 }
 
