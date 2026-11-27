@@ -47,14 +47,6 @@ Ist das Duplikat schon offen, wird es nur wieder auf den Zielbildschirm gelegt, 
 
 Falls etwas nicht klappt, unter *Einstellungen › Photoshop* auf **„Diagnose kopieren“** klicken und den Text weitergeben. Er enthält die Menü- und Fensterdaten von Photoshop, aber keine Bildinhalte.
 
-## Strom: Steckdose über Kurzbefehle schalten
-
-Unter *Einstellungen › Strom* wählst du entweder **einen Umschalter-Kurzbefehl** (Standard: „MacCharge“) oder zwei getrennte Kurzbefehle für ein und aus, z. B. für eine Apple-Home-Steckdose. Ein Umschalter wird nur ausgeführt, wenn sich der Zustand wirklich ändern muss. Ob die Steckdose an ist, erkennt Display Manager am Netzteil des MacBook. So wird eine schon ausgeschaltete Steckdose nie versehentlich eingeschaltet.
-
-- **Beim Ausschalten des Mac** führt Display Manager „Strom aus“ aus. Der Mac wartet dafür höchstens 20 Sekunden. Beim Neustart bleibt der Strom an, das ist abschaltbar.
-- **Nach Akkustand (MacBook):** Bei 20 % oder weniger „Strom ein“, ab 80 % „Strom aus“. Beide Grenzen sind einstellbar. Ob die Steckdose wirklich geschaltet hat, erkennt Display Manager daran, ob das Netzteil Strom liefert.
-- **Befehle:** `displaymanager://strom-ein` und `displaymanager://strom-aus`, außerdem Einträge in der Menüleiste.
-
 ## Installation
 
 1. Unter [Releases](https://github.com/ziege1988/Display-Manager/releases) die Datei `Display-Manager.zip` herunterladen und entpacken.

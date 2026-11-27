@@ -60,7 +60,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         Updater.shared.start()
-        PowerManager.shared.start()
         registerHotKey()
         NotificationCenter.default.addObserver(forName: .hotKeyChanged, object: nil, queue: .main) { [weak self] _ in
             self?.registerHotKey()
@@ -84,10 +83,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             PhotoshopDuplicator.shared.trigger()
         case "wiederherstellen", "restore":
             WindowTracker.shared.restoreAll(force: true)
-        case "strom-ein", "power-on":
-            PowerManager.shared.switchPower(on: true, reason: "Befehl")
-        case "strom-aus", "power-off":
-            PowerManager.shared.switchPower(on: false, reason: "Befehl")
         case "einstellungen", "settings":
             SettingsWindowController.shared.show()
         default:
@@ -102,18 +97,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKey = HotKey(keyCode: prefs.hotKeyCode, carbonModifiers: prefs.hotKeyModifiers) {
             PhotoshopDuplicator.shared.trigger()
         }
-    }
-
-    /// Beim Ausschalten des Mac zuerst die Steckdose schalten, dann beenden.
-    private var terminationInProgress = false
-
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if terminationInProgress { return .terminateNow }
-        let waiting = PowerManager.shared.handleTermination {
-            self.terminationInProgress = true
-            NSApp.reply(toApplicationShouldTerminate: true)
-        }
-        return waiting ? .terminateLater : .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {
