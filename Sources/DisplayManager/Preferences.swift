@@ -29,6 +29,9 @@ final class Preferences: ObservableObject {
     /// Steckdose (Kurzbefehle) – Namen der Kurzbefehle und Verhalten.
     @Published var powerOnShortcut: String { didSet { defaults.set(powerOnShortcut, forKey: Keys.powerOnShortcut) } }
     @Published var powerOffShortcut: String { didSet { defaults.set(powerOffShortcut, forKey: Keys.powerOffShortcut) } }
+    /// Ein einziger Kurzbefehl schaltet um (ein ↔ aus), z. B. „MacCharge“.
+    @Published var powerToggleMode: Bool { didSet { defaults.set(powerToggleMode, forKey: Keys.powerToggleMode) } }
+    @Published var powerToggleShortcut: String { didSet { defaults.set(powerToggleShortcut, forKey: Keys.powerToggleShortcut) } }
     @Published var powerOffOnShutdown: Bool { didSet { defaults.set(powerOffOnShutdown, forKey: Keys.powerOffOnShutdown) } }
     @Published var powerOffOnRestart: Bool { didSet { defaults.set(powerOffOnRestart, forKey: Keys.powerOffOnRestart) } }
     @Published var batteryControlEnabled: Bool { didSet { defaults.set(batteryControlEnabled, forKey: Keys.batteryControlEnabled) } }
@@ -39,6 +42,8 @@ final class Preferences: ObservableObject {
         static let powerOnShortcut = "powerOnShortcut"
         static let powerOffShortcut = "powerOffShortcut"
         static let powerOffOnShutdown = "powerOffOnShutdown"
+        static let powerToggleMode = "powerToggleMode"
+        static let powerToggleShortcut = "powerToggleShortcut"
         static let powerOffOnRestart = "powerOffOnRestart"
         static let batteryControlEnabled = "batteryControlEnabled"
         static let batteryLowThreshold = "batteryLowThreshold"
@@ -72,6 +77,8 @@ final class Preferences: ObservableObject {
             Keys.powerOnShortcut: "Strom ein",
             Keys.powerOffShortcut: "Strom aus",
             Keys.powerOffOnShutdown: true,
+            Keys.powerToggleMode: true,
+            Keys.powerToggleShortcut: "MacCharge",
             Keys.powerOffOnRestart: false,
             Keys.batteryControlEnabled: true,
             Keys.batteryLowThreshold: 20,
@@ -91,6 +98,8 @@ final class Preferences: ObservableObject {
         powerOnShortcut = defaults.string(forKey: Keys.powerOnShortcut) ?? "Strom ein"
         powerOffShortcut = defaults.string(forKey: Keys.powerOffShortcut) ?? "Strom aus"
         powerOffOnShutdown = defaults.bool(forKey: Keys.powerOffOnShutdown)
+        powerToggleMode = defaults.bool(forKey: Keys.powerToggleMode)
+        powerToggleShortcut = defaults.string(forKey: Keys.powerToggleShortcut) ?? "MacCharge"
         powerOffOnRestart = defaults.bool(forKey: Keys.powerOffOnRestart)
         batteryControlEnabled = defaults.bool(forKey: Keys.batteryControlEnabled)
         batteryLowThreshold = defaults.integer(forKey: Keys.batteryLowThreshold)

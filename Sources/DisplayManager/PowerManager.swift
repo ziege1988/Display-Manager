@@ -88,23 +88,55 @@ final class PowerManager: ObservableObject {
 
     // MARK: - Schalten
 
+    /// Name des auszuführenden Kurzbefehls (Umschalter oder getrennte Befehle).
+    func shortcutName(on: Bool) -> String {
+        prefs.powerToggleMode ? prefs.powerToggleShortcut : (on ? prefs.powerOnShortcut : prefs.powerOffShortcut)
+    }
+
+    /// Kann der aktuelle Zustand der Steckdose erkannt werden? (MacBook: Netzteil liefert Strom = an)
+    var canDetectState: Bool { battery != nil }
+
     func switchPower(on: Bool, reason: String, completion: ((Bool) -> Void)? = nil) {
-        let name = on ? prefs.powerOnShortcut : prefs.powerOffShortcut
+        let name = shortcutName(on: on)
+        let time = Date().formatted(date: .omitted, time: .shortened)
         guard !name.isEmpty else {
-            lastAction = "Kein Kurzbefehl für „Strom \(on ? "ein" : "aus")“ eingestellt."
+            lastAction = "Kein Kurzbefehl eingestellt."
             completion?(false)
             return
+        }
+        refreshBattery()
+        if prefs.powerToggleMode {
+            // Ein Umschalter darf nur laufen, wenn der Zustand wirklich geändert werden muss –
+            // sonst würde z. B. „aus“ die schon ausgeschaltete Steckdose wieder einschalten.
+            guard let battery else {
+                lastAction = "\(time): Zustand der Steckdose unbekannt (kein Akku) – Umschalter nicht ausgeführt."
+                completion?(false)
+                return
+            }
+            if battery.onAC == on {
+                lastAction = "\(time): Strom ist bereits \(on ? "ein" : "aus") – nichts zu tun (\(reason))."
+                completion?(true)
+                return
+            }
         }
         isRunningShortcut = true
         runShortcut(name, timeout: 20) { [weak self] success, output in
             guard let self else { return }
             self.isRunningShortcut = false
-            let time = Date().formatted(date: .omitted, time: .shortened)
-            self.lastAction = success
-                ? "\(time): „\(name)“ ausgeführt (\(reason))."
-                : "\(time): „\(name)“ fehlgeschlagen – \(output.isEmpty ? "Kurzbefehl prüfen" : output)"
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { self.refreshBattery() }
-            completion?(success)
+            guard success else {
+                self.lastAction = "\(time): „\(name)“ fehlgeschlagen – \(output.isEmpty ? "Kurzbefehl prüfen" : output)"
+                completion?(false)
+                return
+            }
+            self.lastAction = "\(time): „\(name)“ ausgeführt – Strom \(on ? "ein" : "aus") (\(reason))."
+            completion?(true)
+            // Rückmeldung prüfen: Hat das Netzteil wirklich umgeschaltet?
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+                self.refreshBattery()
+                if let battery = self.battery, battery.onAC != on {
+                    self.lastAction += " Achtung: Das Netzteil meldet noch „\(battery.onAC ? "Strom an" : "kein Strom")“."
+                }
+            }
         }
     }
 
@@ -192,7 +224,11 @@ final class PowerManager: ObservableObject {
         case .restart: shouldSwitchOff = prefs.powerOffOnRestart
         case .logout, .other: shouldSwitchOff = false
         }
-        guard shouldSwitchOff, !prefs.powerOffShortcut.isEmpty else { return false }
+        guard shouldSwitchOff, !shortcutName(on: false).isEmpty else { return false }
+        // Steckdose schon aus (MacBook nicht am Strom)? Dann nichts tun – ein Umschalter würde sie sonst einschalten.
+        refreshBattery()
+        if let battery, !battery.onAC { return false }
+        if prefs.powerToggleMode && battery == nil { return false }
         Log.general.info("Mac wird \(reason == .shutdown ? "ausgeschaltet" : "neu gestartet") – Strom aus")
         switchPower(on: false, reason: reason == .shutdown ? "Mac ausgeschaltet" : "Neustart") { _ in
             // Kurz warten, damit der Befehl sicher bei der Steckdose ankommt.

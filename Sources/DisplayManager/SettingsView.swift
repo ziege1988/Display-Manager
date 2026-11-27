@@ -353,8 +353,15 @@ private struct PowerTab: View {
                 }
             }
             Section("Kurzbefehle") {
-                shortcutPicker("Strom ein", selection: $prefs.powerOnShortcut)
-                shortcutPicker("Strom aus", selection: $prefs.powerOffShortcut)
+                Toggle("Ein Kurzbefehl schaltet ein und aus (Umschalter)", isOn: $prefs.powerToggleMode)
+                if prefs.powerToggleMode {
+                    shortcutPicker("Umschalter", selection: $prefs.powerToggleShortcut)
+                    Text("Der Umschalter wird nur ausgeführt, wenn sich der Zustand ändern muss. Erkannt wird das am Netzteil: liefert es Strom, ist die Steckdose an. Dafür muss das MacBook an dieser Steckdose hängen.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    shortcutPicker("Strom ein", selection: $prefs.powerOnShortcut)
+                    shortcutPicker("Strom aus", selection: $prefs.powerOffShortcut)
+                }
                 HStack {
                     Button("Strom ein testen") { power.switchPower(on: true, reason: "Test") }
                     Button("Strom aus testen") { power.switchPower(on: false, reason: "Test") }
